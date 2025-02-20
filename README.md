@@ -6,6 +6,7 @@ A versatile and powerful Telegram chatbot that combines advanced AI capabilities
 [![Telegram Bot API](https://img.shields.io/badge/Telegram%20Bot%20API-✓-blue)](https://core.telegram.org/bots/api)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Groq AI](https://img.shields.io/badge/Groq%20AI-Powered-orange)](https://groq.com)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
 ## 🌟 Features
 
@@ -17,6 +18,97 @@ A versatile and powerful Telegram chatbot that combines advanced AI capabilities
 - 💾 Persistent conversation memory
 - 🔒 Privacy-focused design
 - ⚡ Fast response times with Groq AI
+
+## 🚀 Deployment Options
+
+### Local Deployment
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/chamika1/ai_chat_bot.git
+cd ai_chat_bot
+```
+
+2. **Set up a virtual environment**
+```bash
+# On Windows
+python -m venv venv
+.\venv\Scripts\activate
+
+# On macOS/Linux
+python3 -m venv venv
+source venv/bin/activate
+```
+
+3. **Install dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+4. **Configure environment variables**
+Create a `.env` file in the project root:
+```env
+TELEGRAM_TOKEN=your_telegram_token_here
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+5. **Run the bot**
+```bash
+python main.py
+```
+
+### Deploy to Render
+
+1. **Fork this repository** to your GitHub account
+
+2. **Create a Render account** at https://render.com if you haven't already
+
+3. **Create a new Web Service**
+   - Click "New +" in your Render dashboard
+   - Select "Web Service"
+   - Connect your GitHub repository
+   - Choose the repository you forked
+
+4. **Configure the service**
+   - Name: `ai-chat-bot` (or your preferred name)
+   - Environment: `Python`
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `python main.py`
+   - Select the branch to deploy
+
+5. **Add environment variables**
+   In the Render dashboard, add these environment variables:
+   - `TELEGRAM_TOKEN`: Your Telegram bot token
+   - `GROQ_API_KEY`: Your Groq API key
+
+6. **Deploy**
+   - Click "Create Web Service"
+   - Wait for the deployment to complete
+
+7. **Verify deployment**
+   - Check the logs in Render dashboard
+   - Test your bot on Telegram
+
+### Important Deployment Notes
+
+1. **Environment Variables**
+   - Keep your tokens secure
+   - Never commit `.env` file
+   - Use Render's environment variables section
+
+2. **Persistence**
+   - Bot memory is stored in-memory
+   - For persistence, consider adding a database
+
+3. **Scaling**
+   - Free tier has limitations
+   - Upgrade for better performance
+   - Monitor usage in Render dashboard
+
+4. **Troubleshooting**
+   - Check Render logs for errors
+   - Verify environment variables
+   - Ensure all dependencies are listed in requirements.txt
 
 ## 📋 Prerequisites
 
