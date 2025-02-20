@@ -17,8 +17,6 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
-      - key: PYTHON_VERSION
-        value: 3.8.0
       - key: PORT
         value: 10000
     healthCheckPath: /health 

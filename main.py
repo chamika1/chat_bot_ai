@@ -7,18 +7,6 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from time import sleep
 import asyncio
 import re
-from flask import Flask
-
-# Create Flask app for health check
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return 'Bot is running', 200
-
-@app.route('/health')
-def health_check():
-    return 'OK', 200
 
 class TelegramChatBot:
     def __init__(self, telegram_token, groq_api_key):
@@ -27,11 +15,7 @@ class TelegramChatBot:
         self.search_client = DDGS()
         self.conversations = {}
         self.memory_file = "chat_memory.json"
-        self.user_preferences = {}
-        
-        # Initialize the bot
-        self.app = Application.builder().token(self.telegram_token).build()
-        self.setup_handlers()
+        self.user_preferences = {}  # Store user preferences
         
         # Define the assistant's personality/prompt
         self.assistant_prompt = """You are a helpful and knowledgeable AI assistant. You provide clear, accurate, and informative responses while maintaining a friendly and professional tone. You excel at explaining complex topics in simple terms and can engage in both technical and casual conversations. Format your responses using markdown when appropriate:
@@ -43,45 +27,6 @@ class TelegramChatBot:
         # Initialize empty conversations and preferences
         self.conversations = {}
         self.user_preferences = {}
-
-    def setup_handlers(self):
-        """Set up all the command handlers"""
-        self.app.add_handler(CommandHandler("start", self.start_command))
-        self.app.add_handler(CommandHandler("help", self.help_command))
-        self.app.add_handler(CommandHandler("clear", self.clear_command))
-        self.app.add_handler(CommandHandler("image", self.image_command))
-        self.app.add_handler(CommandHandler("memory", self.memory_command))
-        self.app.add_handler(CommandHandler("search", self.search_command))
-        self.app.add_handler(CommandHandler("on_search", self.on_search_command))
-        self.app.add_handler(CommandHandler("off_search", self.off_search_command))
-        self.app.add_handler(CommandHandler("search_image", self.search_image_command))
-        self.app.add_handler(CommandHandler("generate", self.generate_command))
-        self.app.add_handler(CommandHandler("role_girlfriend", self.role_girlfriend_command))
-        self.app.add_handler(CommandHandler("role_assistant", self.role_assistant_command))
-        self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
-        
-        # Add error handler
-        async def error_handler(update, context):
-            print(f'Update {update} caused error {context.error}')
-            try:
-                if update and update.message:
-                    await update.message.reply_text(
-                        "Sorry, I encountered an error. Please try again later."
-                    )
-            except:
-                pass
-        
-        self.app.add_error_handler(error_handler)
-
-    async def start(self):
-        """Start the bot"""
-        await self.app.initialize()
-        await self.app.start()
-        await self.app.run_polling()
-
-    def run(self):
-        """Run the bot"""
-        asyncio.run(self.start())
 
     def load_memory(self):
         """Initialize empty memory without loading from file"""
@@ -116,7 +61,8 @@ class TelegramChatBot:
             self.user_preferences[user_id] = {
                 'web_search_enabled': False,  # Web search disabled by default
                 'max_memory_messages': 50,    # Maximum messages to keep in memory
-                'last_cleared': datetime.now().isoformat()
+                'last_cleared': datetime.now().isoformat(),
+                'channel_verified': False     # Channel verification status
             }
         return self.user_preferences[user_id]
 
@@ -148,6 +94,30 @@ class TelegramChatBot:
         self.user_preferences[user_id].update(preferences)
         self.save_memory()
 
+    async def check_channel_subscription(self, user_id, chat_id="@botlandai"):
+        """Check if user has verified their channel join status"""
+        try:
+            # Get user preferences to check verification status
+            prefs = self.get_user_preferences(user_id)
+            return prefs.get('channel_verified', False)
+        except Exception as e:
+            print(f"Error checking verification status: {e}")
+            return False
+
+    async def verify_command(self, update, context):
+        """Handle channel verification"""
+        user_id = update.effective_user.id
+        
+        # Update user preferences to mark as verified
+        self.update_user_preferences(user_id, {'channel_verified': True})
+        
+        await update.message.reply_text(
+            "✅ *Verification Successful\\!*\n\n"
+            "Thank you for joining our channel\\. You now have full access to the bot\\.\n"
+            "Use /help to see available commands\\!",
+            parse_mode='MarkdownV2'
+        )
+
     async def start_command(self, update, context):
         user_id = update.effective_user.id
         user_info = {
@@ -155,6 +125,23 @@ class TelegramChatBot:
             'first_name': update.effective_user.first_name,
             'last_name': update.effective_user.last_name
         }
+        
+        # Check verification status
+        is_verified = await self.check_channel_subscription(user_id)
+        if not is_verified:
+            join_message = (
+                "🔒 *Access Required*\n\n"
+                "To use this bot, please:\n"
+                "1\\. Join our channel using this link: [Bot Land](https://t\\.me/\\+fUfz\\-TI9nGc1MWY1)\n"
+                "2\\. After joining, click /verify to get access\n\n"
+                "💡 *Why Join?*\n"
+                "• Get updates about new features\n"
+                "• Access exclusive bot content\n"
+                "• Stay informed about improvements"
+            )
+            await update.message.reply_text(join_message, parse_mode='MarkdownV2', disable_web_page_preview=True)
+            return
+
         self.update_user_interaction(user_id, user_info)
         
         welcome_message = (
@@ -537,13 +524,30 @@ class TelegramChatBot:
                 self.save_memory()
 
     async def handle_message(self, update, context):
-        """Handle regular messages with optional web search"""
+        """Handle incoming messages"""
+        user_id = update.effective_user.id
+        
+        # Check verification status
+        is_verified = await self.check_channel_subscription(user_id)
+        if not is_verified:
+            join_message = (
+                "🔒 *Access Required*\n\n"
+                "To use this bot, please:\n"
+                "1\\. Join our channel using this link: [Bot Land](https://t\\.me/\\+fUfz\\-TI9nGc1MWY1)\n"
+                "2\\. After joining, click /verify to get access\n\n"
+                "💡 *Why Join?*\n"
+                "• Get updates about new features\n"
+                "• Access exclusive bot content\n"
+                "• Stay informed about improvements"
+            )
+            await update.message.reply_text(join_message, parse_mode='MarkdownV2', disable_web_page_preview=True)
+            return
+            
         try:
             if not update.message or not hasattr(update.message, 'text'):
                 await update.message.reply_text("I can only process text messages.")
                 return
 
-            user_id = update.effective_user.id
             user_message = update.message.text
             history = self.get_user_history(user_id)
             prefs = self.get_user_preferences(user_id)
@@ -900,14 +904,59 @@ class TelegramChatBot:
                 parse_mode='MarkdownV2'
             )
 
-# Create bot instance
-telegram_token = os.environ.get('TELEGRAM_TOKEN', "7718837777:AAGhYBlLK2Ot7iiIkFcNUApBUjeYI-U86dE")
-groq_api_key = os.environ.get('GROQ_API_KEY', "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")
-bot = TelegramChatBot(telegram_token, groq_api_key)
+    def run(self):
+        """Run the bot with error handling"""
+        app = Application.builder().token(self.telegram_token).build()
+        self.application = app  # Store application instance
+        
+        # Add handlers
+        app.add_handler(CommandHandler("start", self.start_command))
+        app.add_handler(CommandHandler("help", self.help_command))
+        app.add_handler(CommandHandler("clear", self.clear_command))
+        app.add_handler(CommandHandler("image", self.image_command))
+        app.add_handler(CommandHandler("memory", self.memory_command))
+        app.add_handler(CommandHandler("search", self.search_command))
+        app.add_handler(CommandHandler("on_search", self.on_search_command))
+        app.add_handler(CommandHandler("off_search", self.off_search_command))
+        app.add_handler(CommandHandler("search_image", self.search_image_command))
+        app.add_handler(CommandHandler("generate", self.generate_command))
+        app.add_handler(CommandHandler("role_girlfriend", self.role_girlfriend_command))
+        app.add_handler(CommandHandler("role_assistant", self.role_assistant_command))
+        app.add_handler(CommandHandler("verify", self.verify_command))
+        app.add_handler(MessageHandler(
+            filters.TEXT & ~filters.COMMAND, 
+            self.handle_message
+        ))
+        
+        # Add error handler
+        async def error_handler(update, context):
+            print(f'Update {update} caused error {context.error}')
+            try:
+                if update and update.message:
+                    await update.message.reply_text(
+                        "Sorry, I encountered an error. Please try again later."
+                    )
+            except:
+                pass
+        
+        app.add_error_handler(error_handler)
+        
+        print("Bot is running with persistent memory and error handling...")
+        app.run_polling()
 
 def main():
-    """Main function to run the bot"""
+    telegram_token = "7718837777:AAGhYBlLK2Ot7iiIkFcNUApBUjeYI-U86dE"
+    groq_api_key = "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"
+    
+    bot = TelegramChatBot(telegram_token, groq_api_key)
     bot.run()
+
+def escape_markdown(text):
+    """Escape special characters for Telegram's MarkdownV2 format"""
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    for char in special_chars:
+        text = text.replace(char, f'\\{char}')
+    return text
 
 if __name__ == "__main__":
     main() 
