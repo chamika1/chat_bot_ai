@@ -905,16 +905,44 @@ class TelegramChatBot:
             )
 
     def run(self):
-        """Run the bot."""
-        print("Starting bot...")
-        self.application.run_polling()
-
-    async def run_async(self):
-        """Run the bot asynchronously."""
-        print("Starting bot asynchronously...")
-        await self.application.initialize()
-        await self.application.start()
-        await self.application.run_polling()
+        """Run the bot with error handling"""
+        app = Application.builder().token(self.telegram_token).build()
+        self.application = app  # Store application instance
+        
+        # Add handlers
+        app.add_handler(CommandHandler("start", self.start_command))
+        app.add_handler(CommandHandler("help", self.help_command))
+        app.add_handler(CommandHandler("clear", self.clear_command))
+        app.add_handler(CommandHandler("image", self.image_command))
+        app.add_handler(CommandHandler("memory", self.memory_command))
+        app.add_handler(CommandHandler("search", self.search_command))
+        app.add_handler(CommandHandler("on_search", self.on_search_command))
+        app.add_handler(CommandHandler("off_search", self.off_search_command))
+        app.add_handler(CommandHandler("search_image", self.search_image_command))
+        app.add_handler(CommandHandler("generate", self.generate_command))
+        app.add_handler(CommandHandler("role_girlfriend", self.role_girlfriend_command))
+        app.add_handler(CommandHandler("role_assistant", self.role_assistant_command))
+        app.add_handler(CommandHandler("verify", self.verify_command))
+        app.add_handler(MessageHandler(
+            filters.TEXT & ~filters.COMMAND, 
+            self.handle_message
+        ))
+        
+        # Add error handler
+        async def error_handler(update, context):
+            print(f'Update {update} caused error {context.error}')
+            try:
+                if update and update.message:
+                    await update.message.reply_text(
+                        "Sorry, I encountered an error. Please try again later."
+                    )
+            except:
+                pass
+        
+        app.add_error_handler(error_handler)
+        
+        print("Bot is running with persistent memory and error handling...")
+        app.run_polling()
 
 def main():
     telegram_token = "7718837777:AAGhYBlLK2Ot7iiIkFcNUApBUjeYI-U86dE"
