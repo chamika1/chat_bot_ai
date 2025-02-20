@@ -7,6 +7,14 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from time import sleep
 import asyncio
 import re
+from flask import Flask
+
+# Create Flask app for health check
+app = Flask(__name__)
+
+@app.route('/health')
+def health_check():
+    return 'OK', 200
 
 class TelegramChatBot:
     def __init__(self, telegram_token, groq_api_key):
@@ -886,6 +894,12 @@ class TelegramChatBot:
 def main():
     telegram_token = "7718837777:AAGhYBlLK2Ot7iiIkFcNUApBUjeYI-U86dE"
     groq_api_key = "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"
+    
+    # Start Flask app in a separate thread
+    from threading import Thread
+    flask_thread = Thread(target=lambda: app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000))))
+    flask_thread.daemon = True
+    flask_thread.start()
     
     bot = TelegramChatBot(telegram_token, groq_api_key)
     bot.run()
