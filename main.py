@@ -7,6 +7,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from time import sleep
 import asyncio
 import re
+from telegram import Update
 
 class TelegramChatBot:
     def __init__(self, telegram_token, groq_api_key):
@@ -16,6 +17,28 @@ class TelegramChatBot:
         self.conversations = {}
         self.memory_file = "chat_memory.json"
         self.user_preferences = {}  # Store user preferences
+        
+        # Initialize the application
+        self.application = Application.builder().token(self.telegram_token).build()
+        
+        # Add handlers
+        self.application.add_handler(CommandHandler("start", self.start_command))
+        self.application.add_handler(CommandHandler("help", self.help_command))
+        self.application.add_handler(CommandHandler("clear", self.clear_command))
+        self.application.add_handler(CommandHandler("image", self.image_command))
+        self.application.add_handler(CommandHandler("memory", self.memory_command))
+        self.application.add_handler(CommandHandler("search", self.search_command))
+        self.application.add_handler(CommandHandler("on_search", self.on_search_command))
+        self.application.add_handler(CommandHandler("off_search", self.off_search_command))
+        self.application.add_handler(CommandHandler("search_image", self.search_image_command))
+        self.application.add_handler(CommandHandler("generate", self.generate_command))
+        self.application.add_handler(CommandHandler("role_girlfriend", self.role_girlfriend_command))
+        self.application.add_handler(CommandHandler("role_assistant", self.role_assistant_command))
+        self.application.add_handler(CommandHandler("verify", self.verify_command))
+        self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
+        
+        # Add error handler
+        self.application.add_error_handler(self.error_handler)
         
         # Define the assistant's personality/prompt
         self.assistant_prompt = """You are a helpful and knowledgeable AI assistant. You provide clear, accurate, and informative responses while maintaining a friendly and professional tone. You excel at explaining complex topics in simple terms and can engage in both technical and casual conversations. Format your responses using markdown when appropriate:
@@ -27,6 +50,9 @@ class TelegramChatBot:
         # Initialize empty conversations and preferences
         self.conversations = {}
         self.user_preferences = {}
+        
+        # Load existing memory if available
+        self.load_memory()
 
     def load_memory(self):
         """Initialize empty memory without loading from file"""
@@ -904,17 +930,28 @@ class TelegramChatBot:
                 parse_mode='MarkdownV2'
             )
 
+    async def error_handler(self, update, context):
+        """Handle errors in the bot"""
+        print(f'Update {update} caused error {context.error}')
+        try:
+            if update and update.message:
+                await update.message.reply_text(
+                    "Sorry, I encountered an error. Please try again later."
+                )
+        except:
+            print("Failed to send error message to user")
+
     def run(self):
         """Run the bot."""
         print("Starting bot...")
-        self.application.run_polling()
+        self.application.run_polling(allowed_updates=Update.ALL_TYPES)
 
     async def run_async(self):
         """Run the bot asynchronously."""
         print("Starting bot asynchronously...")
         await self.application.initialize()
         await self.application.start()
-        await self.application.run_polling()
+        await self.application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 def main():
     telegram_token = "7718837777:AAGhYBlLK2Ot7iiIkFcNUApBUjeYI-U86dE"
